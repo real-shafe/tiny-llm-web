@@ -1,0 +1,9 @@
+// Static-files Worker: serves public/ at tiny-llm.shafe.dev
+{
+  "name": "tiny-llm",
+  "compatibility_date": "2025-07-15",
+  "assets": { "directory": "./public" },
+  "routes": [
+    { "pattern": "tiny-llm.shafe.dev", "custom_domain": true }
+  ]
+}

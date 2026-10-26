@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>tiny_llm | Shafe</title>
+<meta name="description" content="A tiny GPT trained from scratch on children's stories, running entirely in your browser.">
+<meta name="theme-color" content="#1E2A5A">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wdth,wght@12..96,75..100,400..800&display=swap">
+<link rel="modulepreload" href="model.js">
+<style>
+:root {
+  --ink: #1E2A5A;
+  --ink-muted: #AAB4DC;
+  --paper: #FCFCF8;
+  --red: #E0353B;
+  --blue-rule: #C9D7EF;
+  --text: #1A1D33;
+  --muted: #5B6280;
+  --font: 'Bricolage Grotesque', 'Avenir Next', 'Segoe UI', system-ui, sans-serif;
+  --story: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html { background: var(--ink); }
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+a { color: inherit; }
+:focus-visible { outline: 3px solid var(--red); outline-offset: 3px; }
+
+.wrap { max-width: 860px; margin: 0 auto; padding: clamp(28px, 6vh, 64px) 16px 48px; }
+
+header { padding: 0 clamp(4px, 3vw, 24px); margin-bottom: 28px; }
+.back { font-size: 15px; color: var(--ink-muted); text-decoration: none; font-weight: 600; }
+.back:hover { color: var(--paper); }
+h1 { margin: 14px 0 10px; font-size: clamp(44px, 8vw, 76px); line-height: 1; letter-spacing: -0.02em; font-weight: 800; }
+.lede { margin: 0; max-width: 36rem; font-size: clamp(18px, 2.2vw, 22px); line-height: 1.4; color: var(--ink-muted); text-wrap: pretty; }
+.lede strong { color: var(--paper); font-weight: 600; }
+
+/* index card, ruled like the one on shafe.dev */
+.card {
+  background: var(--paper);
+  color: var(--text);
+  border-radius: 6px;
+  box-shadow: 0 30px 60px rgba(8, 12, 40, 0.45);
+  padding: 28px clamp(18px, 4vw, 40px) 32px;
+}
+
+label.field { display: block; font-weight: 700; font-size: 15px; margin-bottom: 8px; }
+textarea {
+  width: 100%;
+  min-height: 84px;
+  resize: vertical;
+  font: 19px/1.5 var(--story);
+  color: var(--text);
+  background: #fff;
+  border: 2px solid var(--blue-rule);
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+textarea:focus { border-color: var(--ink); outline: none; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 20px; }
+.chip {
+  font: 600 14px var(--font);
+  color: var(--ink);
+  background: transparent;
+  border: 1.5px solid var(--blue-rule);
+  border-radius: 999px;
+  padding: 5px 12px;
+  cursor: pointer;
+}
+.chip:hover { border-color: var(--ink); }
+
+.controls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px 24px; align-items: end; margin-bottom: 22px; }
+.control label { display: flex; justify-content: space-between; font-size: 14px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+.control output { color: var(--text); font-variant-numeric: tabular-nums; }
+input[type=range] { width: 100%; accent-color: var(--ink); }
+.check { display: flex; gap: 8px; align-items: center; font-size: 14px; font-weight: 600; color: var(--muted); }
+.check input { accent-color: var(--ink); width: 16px; height: 16px; }
+
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; }
+.btn {
+  font: 700 17px var(--font);
+  padding: 10px 22px;
+  border-radius: 999px;
+  border: 2px solid var(--ink);
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+.btn.primary { background: var(--ink); color: var(--paper); }
+.btn.primary:hover:not(:disabled) { background: var(--red); border-color: var(--red); }
+.btn.ghost { background: transparent; color: var(--ink); }
+.btn.ghost:hover:not(:disabled) { background: var(--ink); color: var(--paper); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.status { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.status.err { color: var(--red); font-weight: 600; }
+
+.bar { height: 4px; border-radius: 2px; background: var(--blue-rule); overflow: hidden; width: 160px; }
+.bar > i { display: block; height: 100%; width: 0; background: var(--ink); transition: width 0.1s; }
+
+.story {
+  margin-top: 26px;
+  padding-top: 18px;
+  border-top: 2px solid var(--red);
+  min-height: 9em;
+  font: 20px/1.65 var(--story);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  /* ruled lines that sit under the text */
+  background-image: linear-gradient(to bottom, transparent calc(1.65em - 1px), var(--blue-rule) calc(1.65em - 1px));
+  background-size: 100% 1.65em;
+  background-position: 0 calc(18px + 0.2em);
+}
+.story:empty::before { content: 'The story will appear here.'; color: var(--muted); font-style: italic; }
+.story .prompt { color: var(--muted); }
+.story .unknown { text-decoration: line-through; text-decoration-color: var(--red); }
+.story .tok { border-radius: 3px; }
+.story.cursor::after { content: ''; display: inline-block; width: 0.5em; height: 1em; vertical-align: -0.12em; background: var(--ink); margin-left: 1px; animation: blink 1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+.showTokens .tok:nth-child(odd) { background: rgba(201, 215, 239, 0.55); }
+.showTokens .tok:nth-child(even) { background: rgba(224, 53, 59, 0.12); }
+.showTokens .tok.unlikely { box-shadow: inset 0 -2px var(--red); }
+
+.storyFoot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 16px; margin-top: 14px; }
+.note { font-size: 14px; color: var(--muted); margin: 0; }
+
+.about { padding: 32px clamp(4px, 3vw, 24px) 0; color: var(--ink-muted); font-size: 16px; line-height: 1.55; max-width: 40rem; }
+.about h2 { color: var(--paper); font-size: 22px; margin: 0 0 8px; }
+.about p { margin: 0 0 12px; }
+.about code { font-size: 0.92em; color: var(--paper); }
+.about a { color: var(--paper); font-weight: 600; }
+
+@media (max-width: 640px) {
+  .controls { grid-template-columns: 1fr 1fr; }
+  .controls .check { grid-column: 1 / -1; }
+  .story { font-size: 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .story.cursor::after { animation: none; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="back" href="https://shafe.dev">← shafe.dev</a>
+    <h1>tiny_llm</h1>
+    <p class="lede">A small GPT I trained from scratch on about 750,000 words of children's stories. <strong>It runs entirely in your browser</strong>: no server, no API, just <span id="paramCount">a few million</span> numbers doing arithmetic on your device.</p>
+  </header>
+
+  <main class="card">
+    <label class="field" for="prompt">Start a story</label>
+    <textarea id="prompt" spellcheck="false">Once upon a time, there was a little cat named</textarea>
+    <div class="chips" id="chips">
+      <button class="chip" type="button">Once upon a time, there was a little cat named</button>
+      <button class="chip" type="button">Tom and Sue went to the park. They</button>
+      <button class="chip" type="button">One day, a big red ball</button>
+      <button class="chip" type="button">Lily was sad because</button>
+      <button class="chip" type="button">The dragon looked at the tiny bird and said,</button>
+    </div>
+
+    <div class="controls">
+      <div class="control">
+        <label for="temp">Temperature <output id="tempOut">0.8</output></label>
+        <input id="temp" type="range" min="0.1" max="1.5" step="0.05" value="0.8">
+      </div>
+      <div class="control">
+        <label for="len">Max length <output id="lenOut">200</output></label>
+        <input id="len" type="range" min="20" max="600" step="10" value="200">
+      </div>
+      <div class="control">
+        <label for="topk">Top-k <output id="topkOut">40</output></label>
+        <input id="topk" type="range" min="0" max="200" step="5" value="40">
+      </div>
+      <label class="check"><input id="stopAtEnd" type="checkbox" checked> Stop when the story ends</label>
+      <label class="check"><input id="showTokens" type="checkbox"> Show tokens</label>
+    </div>
+
+    <div class="actions">
+      <button class="btn primary" id="go" type="button" disabled>Loading…</button>
+      <button class="btn ghost" id="stop" type="button" hidden>Stop</button>
+      <div class="bar" id="bar"><i></i></div>
+      <span class="status" id="status" role="status">Downloading the model…</span>
+    </div>
+
+    <div class="story" id="story" aria-live="polite"></div>
+    <div class="storyFoot">
+      <p class="note" id="unknownNote" hidden><span class="unknown">Struck-through</span> pieces of your prompt never appeared in the training data, so the model skips them.</p>
+      <p class="note" id="tokenNote" hidden>Each shaded chunk is one token. Hover for how likely the model thought it was; red underlines are long shots.</p>
+    </div>
+  </main>
+
+  <section class="about">
+    <h2>How it works</h2>
+    <p>It's a 4-layer transformer with 4 attention heads, a 128-dimension embedding and a 128-token context window, trained on a slice of the <a href="https://huggingface.co/datasets/roneneldan/TinyStories">TinyStories</a> dataset. It's a story-completion model, not a chatbot. It only knows how to keep going in the style of simple children's stories, and its grip on plot is loose.</p>
+    <p id="aboutNumbers">It uses GPT-2's tokenizer, but only a fraction of those 50,257 tokens ever showed up in training, so the page ships just those rows of the embedding and output layers.</p>
+    <p>The forward pass is about 150 lines of plain JavaScript in a Web Worker (<code>model.js</code>), with a key/value cache so each new word only costs one step. The training code, built up from a bigram baseline, is on <a href="https://github.com/real-shafe/tiny_llm">GitHub</a>.</p>
+  </section>
+</div>
+<script type="module" src="app.js"></script>
+</body>
+</html>
